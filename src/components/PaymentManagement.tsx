@@ -8,6 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAppointments } from "@/context/AppointmentContext";
 import { useAuth } from "@/context/AuthContext";
 import { usePayments } from "@/context/PaymentContext";
@@ -15,7 +17,8 @@ import { Appointment } from "@/types/appointment";
 import { PaymentBatch } from "@/types/payment";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckSquare, XSquare, Eye, AlertTriangle, Search } from "lucide-react";
+import { CheckSquare, XSquare, Eye, AlertTriangle, Search, CalendarIcon, CalendarRange } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const PaymentManagement = () => {
   const { appointments } = useAppointments();
@@ -23,7 +26,7 @@ const PaymentManagement = () => {
   const { createPaymentBatch, paymentBatches, getPaymentItemsByBatch, contestPaymentBatch, markPaymentAsPaid } = usePayments();
   
   const [selectedPsychologist, setSelectedPsychologist] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [selectedAppointments, setSelectedAppointments] = useState<string[]>([]);
   const [showBatchDetails, setShowBatchDetails] = useState<string | null>(null);
   const [contestReason, setContestReason] = useState("");
@@ -31,15 +34,15 @@ const PaymentManagement = () => {
 
   const psychologists = users.filter(u => u.role === "psychologist");
   
-  // Get appointments for selected psychologist and date
+  // Get appointments for selected psychologist and date range
   const getFilteredAppointments = () => {
     console.log("Filtering appointments...");
     console.log("Selected psychologist:", selectedPsychologist);
-    console.log("Selected date:", selectedDate);
+    console.log("Date range:", dateRange);
     console.log("Total appointments:", appointments.length);
     
-    if (!selectedPsychologist || !selectedDate) {
-      console.log("No psychologist or date selected");
+    if (!selectedPsychologist || !dateRange.from || !dateRange.to) {
+      console.log("No psychologist or date range selected");
       return [];
     }
     
@@ -49,11 +52,20 @@ const PaymentManagement = () => {
         date: app.date,
         status: app.status,
         selectedPsychologist,
-        selectedDate
+        dateRange
       });
       
+      const appointmentDate = new Date(app.date);
+      const fromDate = new Date(dateRange.from!);
+      const toDate = new Date(dateRange.to!);
+      
+      // Set time to compare only dates
+      appointmentDate.setHours(0, 0, 0, 0);
+      fromDate.setHours(0, 0, 0, 0);
+      toDate.setHours(23, 59, 59, 999);
+      
       const matchesPsychologist = app.psychologistId === selectedPsychologist;
-      const matchesDate = app.date === selectedDate;
+      const matchesDateRange = appointmentDate >= fromDate && appointmentDate <= toDate;
       const isConfirmed = app.status === "confirmed";
       
       // Check if appointment is not already in a payment batch
@@ -62,11 +74,11 @@ const PaymentManagement = () => {
         (batch.status === 'pending' || batch.status === 'approved' || batch.status === 'paid')
       );
       
-      const shouldInclude = matchesPsychologist && matchesDate && isConfirmed && notInBatch;
+      const shouldInclude = matchesPsychologist && matchesDateRange && isConfirmed && notInBatch;
       
       console.log(`Appointment ${app.id} included:`, shouldInclude, {
         matchesPsychologist,
-        matchesDate,
+        matchesDateRange,
         isConfirmed,
         notInBatch
       });
@@ -151,6 +163,11 @@ const PaymentManagement = () => {
     !selectedPsychologist || batch.psychologistId === selectedPsychologist
   );
 
+  const getDateRangeText = () => {
+    if (!dateRange.from || !dateRange.to) return "";
+    return `${format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })} a ${format(dateRange.to, "dd/MM/yyyy", { locale: ptBR })}`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -184,16 +201,43 @@ const PaymentManagement = () => {
             </div>
             
             <div>
-              <label className="text-sm font-medium">Data</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setSelectedAppointments([]); // Clear selections when changing date
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
+              <label className="text-sm font-medium">Período</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dateRange.from && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarRange className="mr-2 h-4 w-4" />
+                    {dateRange.from ? (
+                      dateRange.to ? (
+                        `${format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })} - ${format(dateRange.to, "dd/MM/yyyy", { locale: ptBR })}`
+                      ) : (
+                        format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
+                      )
+                    ) : (
+                      "Selecione o período"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange.from}
+                    selected={dateRange}
+                    onSelect={(range) => {
+                      setDateRange(range || {});
+                      setSelectedAppointments([]); // Clear selections when changing date range
+                    }}
+                    numberOfMonths={2}
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="flex items-end">
@@ -201,7 +245,7 @@ const PaymentManagement = () => {
                 variant="outline"
                 onClick={() => {
                   console.log("Search button clicked");
-                  console.log("Current filters:", { selectedPsychologist, selectedDate });
+                  console.log("Current filters:", { selectedPsychologist, dateRange });
                 }}
                 className="flex items-center gap-2"
               >
@@ -212,10 +256,10 @@ const PaymentManagement = () => {
           </div>
 
           {/* Show message when filters are set but no appointments found */}
-          {selectedPsychologist && selectedDate && filteredAppointments.length === 0 && (
+          {selectedPsychologist && dateRange.from && dateRange.to && filteredAppointments.length === 0 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
               <p className="text-sm text-yellow-800">
-                Nenhum atendimento confirmado encontrado para {psychologists.find(p => p.id === selectedPsychologist)?.name} na data {format(new Date(selectedDate), "dd/MM/yyyy", { locale: ptBR })} ou todos os atendimentos já foram incluídos em lotes de pagamento.
+                Nenhum atendimento confirmado encontrado para {psychologists.find(p => p.id === selectedPsychologist)?.name} no período {getDateRangeText()} ou todos os atendimentos já foram incluídos em lotes de pagamento.
               </p>
             </div>
           )}
@@ -225,7 +269,7 @@ const PaymentManagement = () => {
             <>
               <div className="bg-green-50 border border-green-200 rounded-md p-4">
                 <p className="text-sm text-green-800">
-                  Encontrados {filteredAppointments.length} atendimento(s) confirmado(s) para {psychologists.find(p => p.id === selectedPsychologist)?.name} na data {format(new Date(selectedDate), "dd/MM/yyyy", { locale: ptBR })}.
+                  Encontrados {filteredAppointments.length} atendimento(s) confirmado(s) para {psychologists.find(p => p.id === selectedPsychologist)?.name} no período {getDateRangeText()}.
                 </p>
               </div>
 
@@ -248,6 +292,7 @@ const PaymentManagement = () => {
                     <TableRow>
                       <TableHead className="w-12"></TableHead>
                       <TableHead>Paciente</TableHead>
+                      <TableHead>Data</TableHead>
                       <TableHead>Horário</TableHead>
                       <TableHead>Valor Bruto</TableHead>
                       <TableHead>Comissão ({commissionPercentage}%)</TableHead>
@@ -265,6 +310,7 @@ const PaymentManagement = () => {
                             />
                           </TableCell>
                           <TableCell>{appointment.patient.name}</TableCell>
+                          <TableCell>{format(new Date(appointment.date), "dd/MM/yyyy", { locale: ptBR })}</TableCell>
                           <TableCell>{appointment.startTime} - {appointment.endTime}</TableCell>
                           <TableCell>R$ {appointment.value.toFixed(2)}</TableCell>
                           <TableCell>R$ {commission.toFixed(2)}</TableCell>
