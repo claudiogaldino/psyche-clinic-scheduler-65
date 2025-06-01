@@ -34,7 +34,8 @@ const initialUsers: User[] = [
     workingHours: [
       { dayOfWeek: 1, startTime: "09:00", endTime: "18:00" },
       { dayOfWeek: 3, startTime: "09:00", endTime: "18:00" }
-    ]
+    ],
+    commissionPercentage: 50
   },
   { 
     id: "4", 
@@ -47,8 +48,25 @@ const initialUsers: User[] = [
     workingHours: [
       { dayOfWeek: 2, startTime: "13:00", endTime: "19:00" },
       { dayOfWeek: 4, startTime: "13:00", endTime: "19:00" }
-    ]
+    ],
+    commissionPercentage: 40
   },
+  { 
+    id: "5", 
+    name: "Dr. Claudio Silva", 
+    email: "claudio@example.com", 
+    role: "psychologist",
+    phone: "(11) 98765-4321",
+    username: "claudio",
+    password: "claudio",
+    workingHours: [
+      { dayOfWeek: 1, startTime: "08:00", endTime: "17:00" },
+      { dayOfWeek: 2, startTime: "08:00", endTime: "17:00" },
+      { dayOfWeek: 4, startTime: "08:00", endTime: "17:00" },
+      { dayOfWeek: 5, startTime: "08:00", endTime: "17:00" }
+    ],
+    commissionPercentage: 60
+  }
 ];
 
 // Function to generate random ID
