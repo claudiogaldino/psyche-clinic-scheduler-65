@@ -15,7 +15,7 @@ import { Appointment } from "@/types/appointment";
 import { PaymentBatch } from "@/types/payment";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckSquare, XSquare, Eye, AlertTriangle } from "lucide-react";
+import { CheckSquare, XSquare, Eye, AlertTriangle, Search } from "lucide-react";
 
 const PaymentManagement = () => {
   const { appointments } = useAppointments();
@@ -33,17 +33,49 @@ const PaymentManagement = () => {
   
   // Get appointments for selected psychologist and date
   const getFilteredAppointments = () => {
-    if (!selectedPsychologist || !selectedDate) return [];
+    console.log("Filtering appointments...");
+    console.log("Selected psychologist:", selectedPsychologist);
+    console.log("Selected date:", selectedDate);
+    console.log("Total appointments:", appointments.length);
     
-    return appointments.filter(app => 
-      app.psychologistId === selectedPsychologist &&
-      app.date === selectedDate &&
-      app.status === "confirmed" &&
-      !paymentBatches.some(batch => 
+    if (!selectedPsychologist || !selectedDate) {
+      console.log("No psychologist or date selected");
+      return [];
+    }
+    
+    const filtered = appointments.filter(app => {
+      console.log(`Checking appointment ${app.id}:`, {
+        psychologistId: app.psychologistId,
+        date: app.date,
+        status: app.status,
+        selectedPsychologist,
+        selectedDate
+      });
+      
+      const matchesPsychologist = app.psychologistId === selectedPsychologist;
+      const matchesDate = app.date === selectedDate;
+      const isConfirmed = app.status === "confirmed";
+      
+      // Check if appointment is not already in a payment batch
+      const notInBatch = !paymentBatches.some(batch => 
         batch.appointmentIds.includes(app.id) && 
         (batch.status === 'pending' || batch.status === 'approved' || batch.status === 'paid')
-      )
-    );
+      );
+      
+      const shouldInclude = matchesPsychologist && matchesDate && isConfirmed && notInBatch;
+      
+      console.log(`Appointment ${app.id} included:`, shouldInclude, {
+        matchesPsychologist,
+        matchesDate,
+        isConfirmed,
+        notInBatch
+      });
+      
+      return shouldInclude;
+    });
+    
+    console.log("Filtered appointments:", filtered.length);
+    return filtered;
   };
 
   const filteredAppointments = getFilteredAppointments();
@@ -131,10 +163,13 @@ const PaymentManagement = () => {
           <CardTitle>Criar Novo Pagamento</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium">Psicólogo</label>
-              <Select value={selectedPsychologist} onValueChange={setSelectedPsychologist}>
+              <Select value={selectedPsychologist} onValueChange={(value) => {
+                setSelectedPsychologist(value);
+                setSelectedAppointments([]); // Clear selections when changing psychologist
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um psicólogo" />
                 </SelectTrigger>
@@ -153,18 +188,51 @@ const PaymentManagement = () => {
               <input
                 type="date"
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={(e) => {
+                  setSelectedDate(e.target.value);
+                  setSelectedAppointments([]); // Clear selections when changing date
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
               />
             </div>
+
+            <div className="flex items-end">
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  console.log("Search button clicked");
+                  console.log("Current filters:", { selectedPsychologist, selectedDate });
+                }}
+                className="flex items-center gap-2"
+              >
+                <Search className="h-4 w-4" />
+                Buscar Atendimentos
+              </Button>
+            </div>
           </div>
 
+          {/* Show message when filters are set but no appointments found */}
+          {selectedPsychologist && selectedDate && filteredAppointments.length === 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+              <p className="text-sm text-yellow-800">
+                Nenhum atendimento confirmado encontrado para {psychologists.find(p => p.id === selectedPsychologist)?.name} na data {format(new Date(selectedDate), "dd/MM/yyyy", { locale: ptBR })} ou todos os atendimentos já foram incluídos em lotes de pagamento.
+              </p>
+            </div>
+          )}
+
+          {/* Show appointments table when found */}
           {filteredAppointments.length > 0 && (
             <>
+              <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                <p className="text-sm text-green-800">
+                  Encontrados {filteredAppointments.length} atendimento(s) confirmado(s) para {psychologists.find(p => p.id === selectedPsychologist)?.name} na data {format(new Date(selectedDate), "dd/MM/yyyy", { locale: ptBR })}.
+                </p>
+              </div>
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    checked={selectedAppointments.length === filteredAppointments.length}
+                    checked={selectedAppointments.length === filteredAppointments.length && filteredAppointments.length > 0}
                     onCheckedChange={handleSelectAll}
                   />
                   <span className="text-sm">Selecionar todos</span>
@@ -182,7 +250,7 @@ const PaymentManagement = () => {
                       <TableHead>Paciente</TableHead>
                       <TableHead>Horário</TableHead>
                       <TableHead>Valor Bruto</TableHead>
-                      <TableHead>Comissão</TableHead>
+                      <TableHead>Comissão ({commissionPercentage}%)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -237,45 +305,53 @@ const PaymentManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {psychologistBatches.map(batch => (
-                  <TableRow key={batch.id}>
-                    <TableCell>{batch.psychologistName}</TableCell>
-                    <TableCell>
-                      {format(new Date(batch.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell>R$ {batch.totalNetValue.toFixed(2)}</TableCell>
-                    <TableCell>{getStatusBadge(batch.status)}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowBatchDetails(batch.id)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {batch.status === 'approved' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => markPaymentAsPaid(batch.id)}
-                          >
-                            <CheckSquare className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {batch.status === 'contested' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowContestDialog(batch.id)}
-                          >
-                            <AlertTriangle className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                {psychologistBatches.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-4 text-gray-500">
+                      Nenhum lote de pagamento encontrado
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  psychologistBatches.map(batch => (
+                    <TableRow key={batch.id}>
+                      <TableCell>{batch.psychologistName}</TableCell>
+                      <TableCell>
+                        {format(new Date(batch.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </TableCell>
+                      <TableCell>R$ {batch.totalNetValue.toFixed(2)}</TableCell>
+                      <TableCell>{getStatusBadge(batch.status)}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowBatchDetails(batch.id)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {batch.status === 'approved' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => markPaymentAsPaid(batch.id)}
+                            >
+                              <CheckSquare className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {batch.status === 'contested' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowContestDialog(batch.id)}
+                            >
+                              <AlertTriangle className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
