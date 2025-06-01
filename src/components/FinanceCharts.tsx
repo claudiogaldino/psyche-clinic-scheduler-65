@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   BarChart,
@@ -21,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, subDays, startOfWeek, startOfMonth, startOfYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,6 +29,9 @@ import 'jspdf-autotable';
 import { Download, Edit, Save } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import PaymentManagement from "./PaymentManagement";
+import PsychologistPayments from "./PsychologistPayments";
+import PaymentDashboard from "./PaymentDashboard";
 
 type FilterPeriod = "day" | "week" | "month" | "year";
 
@@ -303,352 +306,381 @@ const FinanceCharts = () => {
         <h1 className="text-2xl font-bold">Finanças</h1>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2">
-          <div className="flex space-x-2 mb-4">
-            <Button
-              variant={filterPeriod === "day" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterPeriod("day")}
-            >
-              Dia
-            </Button>
-            <Button
-              variant={filterPeriod === "week" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterPeriod("week")}
-            >
-              Semana
-            </Button>
-            <Button
-              variant={filterPeriod === "month" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterPeriod("month")}
-            >
-              Mês
-            </Button>
-            <Button
-              variant={filterPeriod === "year" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterPeriod("year")}
-            >
-              Ano
-            </Button>
-          </div>
-          
-          {isAdmin && (
-            <div className="mb-4">
-              <Select
-                value={selectedPsychologist}
-                onValueChange={setSelectedPsychologist}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um psicólogo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Psicólogos</SelectItem>
-                  {psychologists.map((psych) => (
-                    <SelectItem key={psych.id} value={psych.id}>
-                      {psych.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-1 md:col-span-1 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-gray-500">
-                Receita Total ({getPeriodName()})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                R$ {totalRevenue.toFixed(2)}
+      <Tabs defaultValue={isPsychologist ? "payments" : "overview"}>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="payments">
+            {isPsychologist ? "Meus Pagamentos" : "Pagamentos"}
+          </TabsTrigger>
+          {isAdmin && <TabsTrigger value="management">Gerenciar Pagamentos</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="dashboard">Dashboard</TabsTrigger>}
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <div className="flex space-x-2 mb-4">
+                <Button
+                  variant={filterPeriod === "day" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterPeriod("day")}
+                >
+                  Dia
+                </Button>
+                <Button
+                  variant={filterPeriod === "week" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterPeriod("week")}
+                >
+                  Semana
+                </Button>
+                <Button
+                  variant={filterPeriod === "month" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterPeriod("month")}
+                >
+                  Mês
+                </Button>
+                <Button
+                  variant={filterPeriod === "year" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterPeriod("year")}
+                >
+                  Ano
+                </Button>
               </div>
-              <p className="text-xs text-gray-500">
-                {filteredAppointments.length} consultas confirmadas
-              </p>
-            </CardContent>
-          </Card>
-          
-          {isAdmin && (
-            <>
+              
+              {isAdmin && (
+                <div className="mb-4">
+                  <Select
+                    value={selectedPsychologist}
+                    onValueChange={setSelectedPsychologist}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um psicólogo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os Psicólogos</SelectItem>
+                      {psychologists.map((psych) => (
+                        <SelectItem key={psych.id} value={psych.id}>
+                          {psych.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-1 md:col-span-1 gap-4">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-gray-500">
-                    Receita da Clínica
+                    Receita Total ({getPeriodName()})
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    R$ {clinicRevenue.toFixed(2)}
+                  <div className="text-2xl font-bold">
+                    R$ {totalRevenue.toFixed(2)}
                   </div>
+                  <p className="text-xs text-gray-500">
+                    {filteredAppointments.length} consultas confirmadas
+                  </p>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-500">
-                    Comissões dos Psicólogos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    R$ {psychologistCommission.toFixed(2)}
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
+              {isAdmin && (
+                <>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-gray-500">
+                        Receita da Clínica
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-green-600">
+                        R$ {clinicRevenue.toFixed(2)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-gray-500">
+                        Comissões dos Psicólogos
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-blue-600">
+                        R$ {psychologistCommission.toFixed(2)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+              
+              {!isAdmin && isPsychologist && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm text-gray-500">
+                      Minha Comissão
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">
+                      R$ {psychologistCommission.toFixed(2)}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {user?.commissionPercentage || 50}% dos atendimentos
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
           
-          {!isAdmin && isPsychologist && (
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {effectivePsychologist === "all"
+                  ? "Receita por Psicólogo"
+                  : `Receita ${getPeriodName()}`}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey={effectivePsychologist === "all" ? "name" : "date"} />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, "Valor"]}
+                    />
+                    <Legend />
+                    <Bar
+                      name="Valor Total (R$)"
+                      dataKey="valor"
+                      fill="#0ea5e9"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    {isAdmin && (
+                      <>
+                        <Bar
+                          name="Receita da Clínica (R$)"
+                          dataKey="clinica"
+                          fill="#10b981"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          name="Comissões (R$)"
+                          dataKey="comissao"
+                          fill="#6366f1"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </>
+                    )}
+                    {isPsychologist && (
+                      <Bar
+                        name="Minha Comissão (R$)"
+                        dataKey="comissao"
+                        fill="#6366f1"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    )}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Relatório de Atendimentos</CardTitle>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowReportTable(!showReportTable)}
+                >
+                  {showReportTable ? "Ocultar Detalhes" : "Mostrar Detalhes"}
+                </Button>
+                <Button 
+                  onClick={generateReport} 
+                  className="flex items-center gap-1" 
+                  size="sm"
+                >
+                  <Download className="h-4 w-4" /> Exportar PDF
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {showReportTable && (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Paciente</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Horário</TableHead>
+                        <TableHead>Psicólogo</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        {isAdmin && <TableHead className="text-right">Comissão</TableHead>}
+                        {isAdmin && <TableHead className="text-right">Ações</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAppointments.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={isAdmin ? 7 : 5} className="text-center py-4 text-gray-500">
+                            Nenhuma consulta confirmada encontrada para este período
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredAppointments.map((app) => {
+                          const psychologist = psychologists.find(p => p.id === app.psychologistId);
+                          const commissionPercentage = psychologist?.commissionPercentage || 50;
+                          const commission = (app.value * commissionPercentage) / 100;
+                          
+                          return (
+                            <TableRow key={app.id}>
+                              <TableCell>{app.patient.name}</TableCell>
+                              <TableCell>
+                                {format(new Date(app.date), "dd/MM/yyyy", { locale: ptBR })}
+                              </TableCell>
+                              <TableCell>
+                                {app.startTime} - {app.endTime}
+                              </TableCell>
+                              <TableCell>{app.psychologistName}</TableCell>
+                              <TableCell className="text-right font-medium">
+                                R$ {app.value.toFixed(2)}
+                              </TableCell>
+                              {isAdmin && (
+                                <TableCell className="text-right font-medium">
+                                  R$ {commission.toFixed(2)} ({commissionPercentage}%)
+                                </TableCell>
+                              )}
+                              {isAdmin && (
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEditAppointment(app.id, app.value)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {isAdmin && effectivePsychologist !== "all" && (
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-gray-500">
-                  Minha Comissão
-                </CardTitle>
+              <CardHeader>
+                <CardTitle>Detalhes do Psicólogo</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  R$ {psychologistCommission.toFixed(2)}
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Profissional:</p>
+                    <p className="font-medium">
+                      {psychologists.find(p => p.id === effectivePsychologist)?.name || ""}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Total de Consultas:</p>
+                      <p className="font-medium">{filteredAppointments.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Média por Consulta:</p>
+                      <p className="font-medium">
+                        R$ {filteredAppointments.length > 0
+                          ? (totalRevenue / filteredAppointments.length).toFixed(2)
+                          : "0.00"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Percentual de Comissão:</p>
+                      <p className="font-medium">
+                        {psychologists.find(p => p.id === effectivePsychologist)?.commissionPercentage || 50}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Receita Total:</p>
+                      <p className="font-medium">R$ {totalRevenue.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Comissão Total:</p>
+                      <p className="font-medium">R$ {psychologistCommission.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Receita da Clínica:</p>
+                      <p className="font-medium">R$ {clinicRevenue.toFixed(2)}</p>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500">
-                  {user?.commissionPercentage || 50}% dos atendimentos
-                </p>
               </CardContent>
             </Card>
           )}
-        </div>
-      </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {effectivePsychologist === "all"
-              ? "Receita por Psicólogo"
-              : `Receita ${getPeriodName()}`}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey={effectivePsychologist === "all" ? "name" : "date"} />
-                <YAxis />
-                <Tooltip
-                  formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, "Valor"]}
-                />
-                <Legend />
-                <Bar
-                  name="Valor Total (R$)"
-                  dataKey="valor"
-                  fill="#0ea5e9"
-                  radius={[4, 4, 0, 0]}
-                />
-                {isAdmin && (
-                  <>
-                    <Bar
-                      name="Receita da Clínica (R$)"
-                      dataKey="clinica"
-                      fill="#10b981"
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar
-                      name="Comissões (R$)"
-                      dataKey="comissao"
-                      fill="#6366f1"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </>
-                )}
-                {isPsychologist && (
-                  <Bar
-                    name="Minha Comissão (R$)"
-                    dataKey="comissao"
-                    fill="#6366f1"
-                    radius={[4, 4, 0, 0]}
-                  />
-                )}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Relatório de Atendimentos</CardTitle>
-          <div className="flex space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setShowReportTable(!showReportTable)}
-            >
-              {showReportTable ? "Ocultar Detalhes" : "Mostrar Detalhes"}
-            </Button>
-            <Button 
-              onClick={generateReport} 
-              className="flex items-center gap-1" 
-              size="sm"
-            >
-              <Download className="h-4 w-4" /> Exportar PDF
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {showReportTable && (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Paciente</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Horário</TableHead>
-                    <TableHead>Psicólogo</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    {isAdmin && <TableHead className="text-right">Comissão</TableHead>}
-                    {isAdmin && <TableHead className="text-right">Ações</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAppointments.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={isAdmin ? 7 : 5} className="text-center py-4 text-gray-500">
-                        Nenhuma consulta confirmada encontrada para este período
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredAppointments.map((app) => {
-                      const psychologist = psychologists.find(p => p.id === app.psychologistId);
-                      const commissionPercentage = psychologist?.commissionPercentage || 50;
-                      const commission = (app.value * commissionPercentage) / 100;
-                      
-                      return (
-                        <TableRow key={app.id}>
-                          <TableCell>{app.patient.name}</TableCell>
-                          <TableCell>
-                            {format(new Date(app.date), "dd/MM/yyyy", { locale: ptBR })}
-                          </TableCell>
-                          <TableCell>
-                            {app.startTime} - {app.endTime}
-                          </TableCell>
-                          <TableCell>{app.psychologistName}</TableCell>
-                          <TableCell className="text-right font-medium">
-                            R$ {app.value.toFixed(2)}
-                          </TableCell>
-                          {isAdmin && (
-                            <TableCell className="text-right font-medium">
-                              R$ {commission.toFixed(2)} ({commissionPercentage}%)
-                            </TableCell>
-                          )}
-                          {isAdmin && (
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEditAppointment(app.id, app.value)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      
-      {isAdmin && effectivePsychologist !== "all" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Detalhes do Psicólogo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-500">Profissional:</p>
-                <p className="font-medium">
-                  {psychologists.find(p => p.id === effectivePsychologist)?.name || ""}
-                </p>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Total de Consultas:</p>
-                  <p className="font-medium">{filteredAppointments.length}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Média por Consulta:</p>
-                  <p className="font-medium">
-                    R$ {filteredAppointments.length > 0
-                      ? (totalRevenue / filteredAppointments.length).toFixed(2)
-                      : "0.00"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Percentual de Comissão:</p>
-                  <p className="font-medium">
-                    {psychologists.find(p => p.id === effectivePsychologist)?.commissionPercentage || 50}%
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Receita Total:</p>
-                  <p className="font-medium">R$ {totalRevenue.toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Comissão Total:</p>
-                  <p className="font-medium">R$ {psychologistCommission.toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Receita da Clínica:</p>
-                  <p className="font-medium">R$ {clinicRevenue.toFixed(2)}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Edit Appointment Value Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Editar Valor da Consulta</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Novo Valor (R$):</label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={editAppointmentValue}
-                onChange={(e) => setEditAppointmentValue(Number(e.target.value))}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveAppointmentValue} className="flex items-center gap-1">
-              <Save className="h-4 w-4" /> Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {/* Edit Appointment Value Modal */}
+          <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Editar Valor da Consulta</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Novo Valor (R$):</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editAppointmentValue}
+                    onChange={(e) => setEditAppointmentValue(Number(e.target.value))}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveAppointmentValue} className="flex items-center gap-1">
+                  <Save className="h-4 w-4" /> Salvar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+
+        <TabsContent value="payments">
+          {isPsychologist ? <PsychologistPayments /> : <PaymentManagement />}
+        </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="management">
+            <PaymentManagement />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="dashboard">
+            <PaymentDashboard />
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 };
