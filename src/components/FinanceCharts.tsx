@@ -56,6 +56,9 @@ const FinanceCharts = () => {
   // Get all psychologists from the users context
   const psychologists = users.filter(u => u.role === "psychologist");
 
+  console.log("All appointments:", appointments);
+  console.log("Completed appointments:", appointments.filter(app => app.status === "completed"));
+
   // Filter appointments based on date, psychologist, and status
   const getFilteredAppointments = () => {
     let startDate: Date;
@@ -78,22 +81,34 @@ const FinanceCharts = () => {
         startDate = subDays(today, 30); // Default to last 30 days
     }
     
-    return appointments.filter((app) => {
+    const filtered = appointments.filter((app) => {
       const appDate = new Date(app.date);
       const matchesDate = appDate >= startDate;
       const matchesPsychologist = 
         effectivePsychologist === "all" || 
         app.psychologistId === effectivePsychologist;
       
-      // Only include completed appointments (changed from "confirmed" to "completed")
+      // Only include completed appointments
       const isCompleted = app.status === "completed";
+      
+      console.log(`Appointment ${app.id}:`, {
+        date: app.date,
+        status: app.status,
+        matchesDate,
+        matchesPsychologist,
+        isCompleted,
+        included: matchesDate && matchesPsychologist && isCompleted
+      });
       
       return matchesDate && matchesPsychologist && isCompleted;
     });
+    
+    console.log("Filtered appointments for finance:", filtered);
+    return filtered;
   };
   
   const filteredAppointments = getFilteredAppointments();
-  
+
   // Calculate total revenue and psychologist commission
   const calculateFinancials = () => {
     let totalRevenue = 0;
