@@ -3,13 +3,6 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Appointment } from "@/types/appointment";
 import { useAuth } from "@/context/AuthContext";
@@ -17,6 +10,7 @@ import { useAppointments } from "@/context/AppointmentContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { Clock, CheckCircle, XCircle, Calendar, Edit3 } from "lucide-react";
 
 interface AppointmentDetailsProps {
   appointment: Appointment;
@@ -31,7 +25,8 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
   const [newDate, setNewDate] = useState<string>(appointment.date);
   const [newStartTime, setNewStartTime] = useState<string>(appointment.startTime);
   const [newEndTime, setNewEndTime] = useState<string>(appointment.endTime);
-  const [insuranceToken, setInsuranceToken] = useState<string>(appointment.insuranceToken || "");
+  const [isEditingToken, setIsEditingToken] = useState<boolean>(!appointment.insuranceToken);
+  const [tokenValue, setTokenValue] = useState<string>(appointment.insuranceToken || "");
 
   const formattedDate = format(new Date(appointment.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
   const isAdmin = user?.role === "admin";
@@ -40,8 +35,8 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
   const canManage = isAdmin || isReceptionist || isPsychologist;
   const canEditToken = isAdmin || isReceptionist || isPsychologist;
   
-  // Determine if we should show token input (for insurance appointments that are pending OR confirmed)
-  const shouldShowTokenInput = appointment.paymentMethod === "insurance" && 
+  // Determine if we should show token section (for insurance appointments that are pending OR confirmed)
+  const shouldShowTokenSection = appointment.paymentMethod === "insurance" && 
     (appointment.status === "pending" || appointment.status === "confirmed") && 
     canEditToken;
 
@@ -77,14 +72,19 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
   const handleSaveToken = () => {
     const updatedAppointment = {
       ...appointment,
-      insuranceToken
+      insuranceToken: tokenValue
     };
     updateAppointment(updatedAppointment);
+    setIsEditingToken(false);
     
     toast({
       title: "Token salvo",
       description: "O token do convênio foi salvo com sucesso.",
     });
+  };
+
+  const handleEditToken = () => {
+    setIsEditingToken(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -116,14 +116,6 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
         return status;
     }
   };
-
-  // Log for debugging
-  console.log("Appointment details:", {
-    paymentMethod: appointment.paymentMethod,
-    status: appointment.status,
-    canEditToken,
-    shouldShowTokenInput
-  });
 
   return (
     <div className="space-y-4">
@@ -168,23 +160,51 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
         </div>
       </div>
 
-      {/* Token input for insurance plans */}
-      {shouldShowTokenInput && (
+      {/* Token section for insurance plans */}
+      {shouldShowTokenSection && (
         <div className="pt-4 border-t border-gray-200">
           <div className="space-y-3">
             <Label htmlFor="insuranceToken">Token do Plano de Saúde</Label>
-            <div className="flex space-x-2">
-              <Input
-                id="insuranceToken"
-                value={insuranceToken}
-                onChange={(e) => setInsuranceToken(e.target.value)}
-                placeholder="Digite o código de autorização"
-                className="flex-1"
-              />
-              <Button onClick={handleSaveToken} className="whitespace-nowrap">
-                Salvar Token
-              </Button>
-            </div>
+            {isEditingToken ? (
+              <div className="flex space-x-2">
+                <Input
+                  id="insuranceToken"
+                  value={tokenValue}
+                  onChange={(e) => setTokenValue(e.target.value)}
+                  placeholder="Digite o código de autorização"
+                  className="flex-1"
+                />
+                <Button onClick={handleSaveToken} className="whitespace-nowrap">
+                  Salvar
+                </Button>
+                {appointment.insuranceToken && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsEditingToken(false);
+                      setTokenValue(appointment.insuranceToken || "");
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-md">
+                <span className="flex-1 font-mono text-sm">
+                  {appointment.insuranceToken || "Nenhum token cadastrado"}
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleEditToken}
+                  className="flex items-center space-x-1"
+                >
+                  <Edit3 className="h-3 w-3" />
+                  <span>Editar</span>
+                </Button>
+              </div>
+            )}
             <p className="text-xs text-gray-500">
               O token é importante para controle e rastreamento dos atendimentos realizados via convênio.
             </p>
@@ -194,35 +214,55 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
 
       {canManage && (
         <div className="pt-4 border-t border-gray-200">
-          <div className="space-y-3">
-            <Label htmlFor="status">Atualizar Status</Label>
-            <Select
-              defaultValue={appointment.status}
-              onValueChange={(value) => handleStatusChange(value as any)}
-            >
-              <SelectTrigger id="status">
-                <SelectValue placeholder="Selecione o status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pendente</SelectItem>
-                <SelectItem value="confirmed">Confirmado</SelectItem>
-                <SelectItem value="cancelled">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-4">
+            <Label>Atualizar Status</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={appointment.status === "pending" ? "default" : "outline"}
+                onClick={() => handleStatusChange("pending")}
+                className="flex items-center space-x-2"
+                size="sm"
+              >
+                <Clock className="h-4 w-4" />
+                <span>Pendente</span>
+              </Button>
+              <Button
+                variant={appointment.status === "confirmed" ? "default" : "outline"}
+                onClick={() => handleStatusChange("confirmed")}
+                className="flex items-center space-x-2"
+                size="sm"
+              >
+                <CheckCircle className="h-4 w-4" />
+                <span>Confirmado</span>
+              </Button>
+              <Button
+                variant={appointment.status === "cancelled" ? "destructive" : "outline"}
+                onClick={() => handleStatusChange("cancelled")}
+                className="flex items-center space-x-2"
+                size="sm"
+              >
+                <XCircle className="h-4 w-4" />
+                <span>Cancelado</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleOpenReschedule}
+                className="flex items-center space-x-2"
+                size="sm"
+              >
+                <Calendar className="h-4 w-4" />
+                <span>Reagendar</span>
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
       <div className="flex justify-end gap-2 pt-4">
         {canManage && (
-          <>
-            <Button variant="outline" onClick={handleOpenReschedule}>
-              Reagendar
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Cancelar Agendamento
-            </Button>
-          </>
+          <Button variant="destructive" onClick={handleDelete}>
+            Cancelar Agendamento
+          </Button>
         )}
         <Button onClick={onClose}>Fechar</Button>
       </div>

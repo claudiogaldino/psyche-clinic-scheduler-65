@@ -16,6 +16,8 @@ export interface PaymentBatch {
   approvedAt?: string;
   paidAt?: string;
   appointmentIds: string[];
+  paymentProof?: File | string; // Comprovante de pagamento
+  paymentProofName?: string; // Nome do arquivo do comprovante
 }
 
 export interface PaymentItem {
