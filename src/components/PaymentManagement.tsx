@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CheckSquare, XSquare, Eye, AlertTriangle, Search, CalendarIcon, CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DateRange } from "react-day-picker";
 
 const PaymentManagement = () => {
   const { appointments } = useAppointments();
@@ -26,7 +27,7 @@ const PaymentManagement = () => {
   const { createPaymentBatch, paymentBatches, getPaymentItemsByBatch, contestPaymentBatch, markPaymentAsPaid } = usePayments();
   
   const [selectedPsychologist, setSelectedPsychologist] = useState<string>("");
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedAppointments, setSelectedAppointments] = useState<string[]>([]);
   const [showBatchDetails, setShowBatchDetails] = useState<string | null>(null);
   const [contestReason, setContestReason] = useState("");
@@ -41,7 +42,7 @@ const PaymentManagement = () => {
     console.log("Date range:", dateRange);
     console.log("Total appointments:", appointments.length);
     
-    if (!selectedPsychologist || !dateRange.from || !dateRange.to) {
+    if (!selectedPsychologist || !dateRange?.from || !dateRange?.to) {
       console.log("No psychologist or date range selected");
       return [];
     }
@@ -164,7 +165,7 @@ const PaymentManagement = () => {
   );
 
   const getDateRangeText = () => {
-    if (!dateRange.from || !dateRange.to) return "";
+    if (!dateRange?.from || !dateRange?.to) return "";
     return `${format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })} a ${format(dateRange.to, "dd/MM/yyyy", { locale: ptBR })}`;
   };
 
@@ -208,11 +209,11 @@ const PaymentManagement = () => {
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !dateRange.from && "text-muted-foreground"
+                      !dateRange?.from && "text-muted-foreground"
                     )}
                   >
                     <CalendarRange className="mr-2 h-4 w-4" />
-                    {dateRange.from ? (
+                    {dateRange?.from ? (
                       dateRange.to ? (
                         `${format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })} - ${format(dateRange.to, "dd/MM/yyyy", { locale: ptBR })}`
                       ) : (
@@ -227,10 +228,10 @@ const PaymentManagement = () => {
                   <Calendar
                     initialFocus
                     mode="range"
-                    defaultMonth={dateRange.from}
+                    defaultMonth={dateRange?.from}
                     selected={dateRange}
                     onSelect={(range) => {
-                      setDateRange(range || {});
+                      setDateRange(range);
                       setSelectedAppointments([]); // Clear selections when changing date range
                     }}
                     numberOfMonths={2}
@@ -256,7 +257,7 @@ const PaymentManagement = () => {
           </div>
 
           {/* Show message when filters are set but no appointments found */}
-          {selectedPsychologist && dateRange.from && dateRange.to && filteredAppointments.length === 0 && (
+          {selectedPsychologist && dateRange?.from && dateRange?.to && filteredAppointments.length === 0 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
               <p className="text-sm text-yellow-800">
                 Nenhum atendimento confirmado encontrado para {psychologists.find(p => p.id === selectedPsychologist)?.name} no período {getDateRangeText()} ou todos os atendimentos já foram incluídos em lotes de pagamento.
