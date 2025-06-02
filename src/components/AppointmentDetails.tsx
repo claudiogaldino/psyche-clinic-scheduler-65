@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -8,9 +7,11 @@ import { Appointment } from "@/types/appointment";
 import { useAuth } from "@/context/AuthContext";
 import { useAppointments } from "@/context/AppointmentContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { Clock, CheckCircle, XCircle, Calendar, Edit3 } from "lucide-react";
+import { Clock, CheckCircle, XCircle, Calendar, Edit3, CheckSquare } from "lucide-react";
+import PsychologistAvailabilityDatePicker from "./PsychologistAvailabilityDatePicker";
 
 interface AppointmentDetailsProps {
   appointment: Appointment;
@@ -22,11 +23,12 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
   const { toast } = useToast();
   const { updateAppointmentStatus, deleteAppointment, findNextAvailableSlot, rescheduleAppointment, updateAppointment } = useAppointments();
   const [isReschedulingOpen, setIsReschedulingOpen] = useState(false);
-  const [newDate, setNewDate] = useState<string>(appointment.date);
+  const [newDate, setNewDate] = useState<Date>(new Date(appointment.date));
   const [newStartTime, setNewStartTime] = useState<string>(appointment.startTime);
   const [newEndTime, setNewEndTime] = useState<string>(appointment.endTime);
   const [isEditingToken, setIsEditingToken] = useState<boolean>(!appointment.insuranceToken);
   const [tokenValue, setTokenValue] = useState<string>(appointment.insuranceToken || "");
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const formattedDate = format(new Date(appointment.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
   const isAdmin = user?.role === "admin";
@@ -41,14 +43,25 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
     canEditToken;
 
   const handleStatusChange = (status: "pending" | "confirmed" | "cancelled") => {
+    if (status === "cancelled") {
+      setShowCancelConfirm(true);
+      return;
+    }
     updateAppointmentStatus(appointment.id, status);
   };
 
+  const handleConfirmCancel = () => {
+    updateAppointmentStatus(appointment.id, "cancelled");
+    setShowCancelConfirm(false);
+    onClose();
+    toast({
+      title: "Agendamento cancelado",
+      description: `O agendamento de ${appointment.patient.name} foi cancelado com sucesso.`,
+    });
+  };
+
   const handleDelete = () => {
-    if (window.confirm("Tem certeza que deseja cancelar este agendamento?")) {
-      deleteAppointment(appointment.id);
-      onClose();
-    }
+    setShowCancelConfirm(true);
   };
 
   const handleOpenReschedule = () => {
@@ -56,7 +69,7 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
     const nextSlot = findNextAvailableSlot(appointment.psychologistId);
     
     if (nextSlot) {
-      setNewDate(format(nextSlot.date, 'yyyy-MM-dd'));
+      setNewDate(nextSlot.date);
       setNewStartTime(nextSlot.startTime);
       setNewEndTime(nextSlot.endTime);
     }
@@ -65,7 +78,8 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
   };
 
   const handleReschedule = () => {
-    rescheduleAppointment(appointment.id, newDate, newStartTime, newEndTime);
+    const newDateString = format(newDate, 'yyyy-MM-dd');
+    rescheduleAppointment(appointment.id, newDateString, newStartTime, newEndTime);
     setIsReschedulingOpen(false);
   };
 
@@ -85,6 +99,25 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
 
   const handleEditToken = () => {
     setIsEditingToken(true);
+  };
+
+  const handleAttendanceCompleted = () => {
+    // Check if it's an insurance appointment and token is required
+    if (appointment.paymentMethod === "insurance" && !appointment.insuranceToken) {
+      toast({
+        title: "Token obrigatório",
+        description: "Para atendimentos de convênio é obrigatório informar o token antes de marcar como realizado.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    updateAppointmentStatus(appointment.id, "completed");
+    onClose();
+    toast({
+      title: "Atendimento concluído",
+      description: `O atendimento de ${appointment.patient.name} foi marcado como realizado.`,
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -260,14 +293,40 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
 
       <div className="flex justify-end gap-2 pt-4">
         {canManage && (
-          <Button variant="destructive" onClick={handleDelete}>
-            Cancelar Agendamento
+          <Button 
+            variant="default" 
+            onClick={handleAttendanceCompleted}
+            className="flex items-center space-x-2"
+          >
+            <CheckSquare className="h-4 w-4" />
+            <span>Atendimento Realizado</span>
           </Button>
         )}
         <Button onClick={onClose}>Fechar</Button>
       </div>
 
-      {/* Modal de reagendamento */}
+      {/* Modal de confirmação de cancelamento */}
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Cancelamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja cancelar o agendamento de <strong>{appointment.patient.name}</strong> 
+              para o dia {formattedDate} às {appointment.startTime}?
+              <br /><br />
+              Esta ação não pode ser desfeita e o paciente será removido do agendamento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Não, manter agendamento</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCancel} className="bg-red-600 hover:bg-red-700">
+              Sim, cancelar agendamento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal de reagendamento com calendário de disponibilidade */}
       <Dialog open={isReschedulingOpen} onOpenChange={setIsReschedulingOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -275,13 +334,14 @@ const AppointmentDetails = ({ appointment, onClose }: AppointmentDetailsProps) =
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="newDate">Nova Data</Label>
-              <Input
-                id="newDate"
-                type="date"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-                className="mt-1"
+              <Label htmlFor="newDate">Selecione uma nova data disponível</Label>
+              <p className="text-sm text-gray-500 mb-2">
+                Psicólogo: {appointment.psychologistName}
+              </p>
+              <PsychologistAvailabilityDatePicker
+                date={newDate}
+                onDateChange={setNewDate}
+                psychologistId={appointment.psychologistId}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
