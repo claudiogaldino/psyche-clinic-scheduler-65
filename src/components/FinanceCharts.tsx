@@ -85,10 +85,10 @@ const FinanceCharts = () => {
         effectivePsychologist === "all" || 
         app.psychologistId === effectivePsychologist;
       
-      // Only include confirmed appointments
-      const isConfirmed = app.status === "confirmed";
+      // Only include completed appointments (changed from "confirmed" to "completed")
+      const isCompleted = app.status === "completed";
       
-      return matchesDate && matchesPsychologist && isConfirmed;
+      return matchesDate && matchesPsychologist && isCompleted;
     });
   };
   
@@ -384,7 +384,7 @@ const FinanceCharts = () => {
                     R$ {totalRevenue.toFixed(2)}
                   </div>
                   <p className="text-xs text-gray-500">
-                    {filteredAppointments.length} consultas confirmadas
+                    {filteredAppointments.length} consultas realizadas
                   </p>
                 </CardContent>
               </Card>
@@ -536,7 +536,7 @@ const FinanceCharts = () => {
                       {filteredAppointments.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={isAdmin ? 7 : 5} className="text-center py-4 text-gray-500">
-                            Nenhuma consulta confirmada encontrada para este período
+                            Nenhuma consulta realizada encontrada para este período
                           </TableCell>
                         </TableRow>
                       ) : (
