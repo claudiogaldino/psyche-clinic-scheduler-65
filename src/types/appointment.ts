@@ -1,4 +1,3 @@
-
 export interface ConsultingRoom {
   id: string;
   name: string;

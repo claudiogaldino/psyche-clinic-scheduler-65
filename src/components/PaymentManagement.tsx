@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,7 +66,7 @@ const PaymentManagement = () => {
       
       const matchesPsychologist = app.psychologistId === selectedPsychologist;
       const matchesDateRange = appointmentDate >= fromDate && appointmentDate <= toDate;
-      const isConfirmed = app.status === "confirmed";
+      const isCompleted = app.status === "completed"; // Changed from "confirmed" to "completed"
       
       // Check if appointment is not already in a payment batch
       const notInBatch = !paymentBatches.some(batch => 
@@ -75,12 +74,12 @@ const PaymentManagement = () => {
         (batch.status === 'pending' || batch.status === 'approved' || batch.status === 'paid')
       );
       
-      const shouldInclude = matchesPsychologist && matchesDateRange && isConfirmed && notInBatch;
+      const shouldInclude = matchesPsychologist && matchesDateRange && isCompleted && notInBatch;
       
       console.log(`Appointment ${app.id} included:`, shouldInclude, {
         matchesPsychologist,
         matchesDateRange,
-        isConfirmed,
+        isCompleted,
         notInBatch
       });
       
@@ -260,7 +259,7 @@ const PaymentManagement = () => {
           {selectedPsychologist && dateRange?.from && dateRange?.to && filteredAppointments.length === 0 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
               <p className="text-sm text-yellow-800">
-                Nenhum atendimento confirmado encontrado para {psychologists.find(p => p.id === selectedPsychologist)?.name} no período {getDateRangeText()} ou todos os atendimentos já foram incluídos em lotes de pagamento.
+                Nenhum atendimento realizado encontrado para {psychologists.find(p => p.id === selectedPsychologist)?.name} no período {getDateRangeText()} ou todos os atendimentos já foram incluídos em lotes de pagamento.
               </p>
             </div>
           )}
@@ -270,7 +269,7 @@ const PaymentManagement = () => {
             <>
               <div className="bg-green-50 border border-green-200 rounded-md p-4">
                 <p className="text-sm text-green-800">
-                  Encontrados {filteredAppointments.length} atendimento(s) confirmado(s) para {psychologists.find(p => p.id === selectedPsychologist)?.name} no período {getDateRangeText()}.
+                  Encontrados {filteredAppointments.length} atendimento(s) realizado(s) para {psychologists.find(p => p.id === selectedPsychologist)?.name} no período {getDateRangeText()}.
                 </p>
               </div>
 
